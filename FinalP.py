@@ -126,7 +126,7 @@ def scrapK(lien):
     os.makedirs(nom_dossier, exist_ok=True)
 
     # Chemin complet du fichier CSV à créer
-    nom_fichier = f'{re.sub(r'[\\/:*?"<>|]', '-', driver.title)} {scrape_jour} {scrape_heure}.csv'
+    nom_fichier = f'{re.sub(r"[\\/:*?\"<>|]", "-", driver.title)} {scrape_jour} {scrape_heure}.csv'
     chemin_complet = os.path.join(nom_dossier, nom_fichier)
 
     with open(chemin_complet, mode='w', newline='', encoding='utf-8') as csvfile:
