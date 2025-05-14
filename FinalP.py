@@ -14,14 +14,12 @@ import os
 # Heure du scraping
 scrape_jour = datetime.now().strftime("%d-%m-%Y")
 scrape_heure = datetime.now().strftime("%H-%M")
-# Lancement du navigateur
 
+# Lancement du navigateur
 options = Options()
 options.add_argument('--headless')  # important
-options.add_argument('--no-sandbox')
-options.add_argument('--disable-dev-shm-usage')
-
-driver = webdriver.Chrome(options=options)
+options.add_argument("--window-size=1920,1080")  # Taille simulée
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
 driver.get("https://www.twitch.tv/?lang=fr")
 time.sleep(1)
 
@@ -81,7 +79,8 @@ with open(chemin_complet, mode='w', newline='', encoding='utf-8') as csvfile:
     for card in cards[:10]:
         try:
             title = card.find_element(By.CSS_SELECTOR, "div[data-test-selector='tw-card-title'] h2").text
-            viewers_text = card.find_element(By.CSS_SELECTOR, "div.tw-card-body p.CoreText-sc-1txzju1-0 > a").text
+            aria_label = card.find_element(By.CSS_SELECTOR, "[aria-label*='spectateurs']").get_attribute("aria-label")
+            viewers_text = aria_label.lower().split("spectateurs")[0].strip()
             viewers = convert_viewers(viewers_text)
             tag_buttons = card.find_elements(By.CLASS_NAME, "tw-tag")
             tags = [btn.text for btn in tag_buttons]
@@ -127,37 +126,46 @@ def scrapK(lien):
 
     # Chemin complet du fichier CSV à créer
     nom_propre = re.sub(r'[\\/:*?"<>|]', '-', driver.title)
-    nom_fichier = f"{nom_propre} {scrape_jour} {scrape_heure}.csv"
+    nom_fichier = f'{nom_propre} {scrape_jour} {scrape_heure}.csv'
     chemin_complet = os.path.join(nom_dossier, nom_fichier)
 
     with open(chemin_complet, mode='w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Nom du streamer", "Spectateurs", "Tags","Jour","Heure"])
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "article[data-a-target^='card-']")))
-        cards = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "article[data-a-target^='card-']")))
-        if not cards:
-            print(f"⚠️ Aucun stream trouvé pour {driver.title}. Fichier non créé.")
-            driver.back()
-            return
-        for card in cards[:10]:
-            try:
-                # Nom de la chaîne
-                name = card.find_element(By.CSS_SELECTOR, "p[title]").text.strip()
+        try:
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "article[data-a-target^='card-']")))
+            cards = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "article[data-a-target^='card-']")))
 
-                # Nombre de spectateurs
-                viewers_text = card.find_element(By.CSS_SELECTOR, "div.tw-media-card-stat").text
-                viewers_text = convert_viewers(viewers_text)
-                # Tags
-                tag_elements = card.find_elements(By.CLASS_NAME, "tw-tag")
-                tags = [tag.text.strip() for tag in tag_elements]
-                tags_str = " - ".join(tags)
+            if not cards:
+                print(f"⚠️ Aucun stream trouvé pour {driver.title}. Ligne vide ajoutée.")
+                writer.writerow(["", "", "", scrape_jour, scrape_heure])
+                driver.back()
+                return
 
-                writer.writerow([name, viewers_text, tags_str,scrape_jour,scrape_heure])
-                print(f"{name} — {viewers_text} — {tags_str}")
-            
-            except Exception as e:
-                print(f"Erreur sur une carte : {e}")
-    driver.back() 
+            for card in cards[:10]:
+                try:
+                    # Nom de la chaîne
+                    name = card.find_element(By.CSS_SELECTOR, "p[title]").text.strip()
+
+                    # Nombre de spectateurs
+                    viewers_text = card.find_element(By.CSS_SELECTOR, "div.tw-media-card-stat").text
+                    viewers = convert_viewers(viewers_text)
+
+                    # Tags
+                    tag_elements = card.find_elements(By.CLASS_NAME, "tw-tag")
+                    tags = [tag.text.strip() for tag in tag_elements]
+                    tags_str = " - ".join(tags)
+
+                    writer.writerow([name, viewers, tags_str, scrape_jour, scrape_heure])
+                    print(f"{name} — {viewers} — {tags_str}")
+
+                except Exception as e:
+                    print(f"Erreur sur une carte : {e}")
+
+        except Exception as e:
+            print(f"⚠️ Erreur lors du chargement des cartes pour {driver.title} : {e}")
+            writer.writerow(["", "", "", scrape_jour, scrape_heure])
+    driver.back()
 
 
 for link in links[:10]:
