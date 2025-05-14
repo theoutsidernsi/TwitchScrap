@@ -19,8 +19,11 @@ scrape_heure = datetime.now().strftime("%H-%M")
 options = Options()
 options.add_argument('--headless')  # important
 options.add_argument("--window-size=1920,1080")  # Taille simulée
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
 driver.get("https://www.twitch.tv/?lang=fr")
+driver.set_window_size(1920, 1080)
+
 time.sleep(1)
 
 # Clique sur Parcourir
